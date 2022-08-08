@@ -1,0 +1,47 @@
+{
+  "name": "geonames-v1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.ts",
+  "scripts": {
+    "build": "tsc",
+    "debug": "npm run build && node dist/src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint:fix": "eslint ./src --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://cleverpine@dev.azure.com/cleverpine/dotnet/_git/node"
+  },
+  "author": "",
+  "devDependencies": {
+    "@types/node": "^18.0.1",
+    "@typescript-eslint/eslint-plugin": "5.10.2",
+    "@typescript-eslint/parser": "5.10.2",
+    "eslint": "8.8.0",
+    "eslint-config-airbnb-base": "15.0.0",
+    "eslint-config-airbnb-typescript": "16.1.0",
+    "eslint-config-prettier": "8.4.0",
+    "eslint-plugin-import": "2.25.4",
+    "eslint-plugin-prettier": "4.0.0",
+    "nodemon": "^2.0.19",
+    "prettier": "2.5.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "consolidate": "^0.16.0",
+    "csv": "^6.2.0",
+    "csv-write-stream": "^2.0.0",
+    "dotenv": "^16.0.1",
+    "ejs": "^3.1.8",
+    "express": "^4.18.1",
+    "fs": "^0.0.1-security",
+    "http": "^0.0.1-security",
+    "http-server": "^14.1.1",
+    "mustache": "^4.2.0",
+    "mysql2": "^2.3.3",
+    "node-fetch": "^3.2.6",
+    "node-geocode": "^0.2.0"
+  }
+}

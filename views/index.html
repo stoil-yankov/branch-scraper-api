@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script>
+        function showResults(val) {
+            res = document.getElementById("result");
+            res.innerHTML = '';
+            if (val == '') {
+                return;
+            }
+            let list = '';
+            fetch('http://localhost:3000/locations?q=' + val).then(
+                function (response) {
+                    return response.json();
+                }).then(function (data) {
+                    for (i = 0; i < data.length; i++) {
+                        let location = data[i];
+                        list += `<a href="http://maps.google.com/maps?z=12&t=m&q=loc:${location.lat}+${location.long}" target="_blank"> ${location.name}, ${location.toponymName}, ${location.country} </a><br>`;
+                    }
+                    res.innerHTML = '<ul>' + list + '</ul>';
+                    return true;
+                }).catch(function (err) {
+                    console.warn('Something went wrong.', err);
+                    return false;
+                });
+        }
+    </script>
+</head>
+
+<body>
+
+    <form autocomplete="off"><input type="text" name="q" id="q" onKeyUp="showResults(this.value)" />
+        <div class="dropdown">
+            <div id="result" class="dropdown-content">
+            </div>
+          </div>
+    </form>
+
+</body>
+
+</html>
