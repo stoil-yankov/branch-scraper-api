@@ -3,7 +3,6 @@ import { Airport } from "../entities/Airport";
 import { Branch } from "../entities/Branch";
 import { BranchDTO } from "../entities/BranchDTO";
 import { Location } from "../entities/Location";
-const KEY = 'RTYtj3cWKxHaxlXyByupOyLGSOBeOX0f';
 
 export class LocationsMapper {
     public static mapAirportRequest(value: string) {
@@ -14,7 +13,7 @@ export class LocationsMapper {
         },
         url: `https://api.tomtom.com/search/2/poiSearch/${value}.json`,
         params: {
-          key: KEY,
+          key: process.env.TOMTOM_API_KEY,
           categorySet: '7383'
         }
       };
@@ -30,7 +29,7 @@ export class LocationsMapper {
         },
         url: `https://api.tomtom.com/search/2/reverseGeocode/${value}.json`,
         params: {
-          key: KEY
+          key: process.env.SERP_API_KEY
         }
       };
 
