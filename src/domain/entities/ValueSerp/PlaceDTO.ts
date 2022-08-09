@@ -1,12 +1,15 @@
 export interface PlaceDTO {
     id: number;
     name: string;
-    googleName: string;
+    newName: string;
     supplier: string;
     address: string;
     zipCode: string;
-    googleAddress: string;
+    newAddress: string;
+    newZipCode: string;
+    newCity: string;
+    newCountry: string;
     coordinates: string;
-    googleCoordinates: string;
+    newCoordinates: string;
     supplierId: string;
 };

@@ -59,6 +59,8 @@ export const app = async (): Promise<void> => {
     }
   })
 
+  
+
   app.listen(port, () => {
     console.log(`App listening at http://localhost:${port}`)
   });

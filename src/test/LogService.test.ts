@@ -1,4 +1,4 @@
-import { LogService } from "../src/application/FileService";
+import { LogService } from "../application/FileService";
 
 describe('Log Service Test', () => {
     test('should log into file successfully', () => {

@@ -1,19 +1,21 @@
 import { AxiosRequestConfig } from "axios";
 import { Branch } from "../entities/Branch";
+import { PlaceCSV } from "../entities/ValueSerp/PlaceCSV";
 import { PlaceDTO } from "../entities/ValueSerp/PlaceDTO";
 import { PlacesResponse, PlacesResult } from "../entities/ValueSerp/PlacesResponse";
 const VALUE_SERP_KEY = '5B988E05529947B59C7001D55F5B63B7';
 
 export class ValueSerpMapper {
     public static mapPlacesRequest(branch: Branch) {
-        const query = `${branch.supplier_name}`;
+        const query = `${branch.name} ${branch.supplier_name}`;
         const location = this.mapCoordinatesForRequest(branch.coordinates);
 
         const params = {
             api_key: VALUE_SERP_KEY,
             q: query,
             search_type: "places",
-            location: location
+            location: location,
+            hl: branch.country_code.toLowerCase()
         }
 
         const requestConfig: AxiosRequestConfig = {
@@ -29,90 +31,79 @@ export class ValueSerpMapper {
     }
 
     public static mapPlacesResponse(branch: Branch, response: PlacesResponse): PlaceDTO {
-        const result = this.mapBestMatch(response, branch.supplier_name);
+        const result = this.mapBestMatch(response, branch);
+
         const coordinates = this.mapCoordinatesForResponse(branch.coordinates);
+        const newCoordinates = `${result.gps_coordinates.latitude}, ${result.gps_coordinates.longitude}`;
+
+        const coordinatesDistanceCheck = this.checkCoordinatesDistance(coordinates, newCoordinates);
+        if (!coordinatesDistanceCheck) {
+            throw new Error("Result distance is more than 100 meters");
+        }
+
+        const [address, zipcode, city, country] = this.mapAddressDetails(result.address || result.extensions[3], branch.supplier_name);
 
         return {
             id: branch.id,
             name: branch.name,
-            googleName: result.title,
+            newName: result.title,
             address: branch.address || 'N/A',
             zipCode: branch.zipcode || 'N/A',
             supplier: branch.supplier_name,
-            googleAddress: result.address || result.extensions[3],
+            newAddress: address,
+            newZipCode: zipcode,
+            newCity: city,
+            newCountry: country,
             coordinates: coordinates,
-            googleCoordinates: `${result.gps_coordinates.latitude} ${result.gps_coordinates.longitude}`,
+            newCoordinates: newCoordinates,
             supplierId: branch.supplier_id
         }
     }
 
-    public static mapBestMatch(response: PlacesResponse, supplierName: string): PlacesResult {
-        // const result = response.places_results.find(x => x.title.toLowerCase().includes(supplierName.toLowerCase()));
-        const result = this.checkForBestProviderMatch(supplierName, response);
-        if(!result) {
+    public static mapBestMatch(response: PlacesResponse, branch: Branch): PlacesResult {
+        const resultsSliced = response.places_results.slice(0, 10);
+        const result = this.checkForBestProviderMatch(branch.supplier_name, resultsSliced);
+        if (!result) {
             throw new Error('No relevant branch found');
         }
 
         return result;
     }
 
-    public static checkForBestProviderMatch(supplierName: string, response: PlacesResponse): PlacesResult | undefined{ 
-        const a1 = ["enterprise", "national", "alamo"];
-        const a2 = ["avis","budget"];
-        const a3 = ["europcar","keddy", "keddy by europcar"];
-        const a4 = ["thrifty","dollar"];
-        const a5 = ["buchbinder","global rent-a-car"];
-        const a6 = ["hertz","firefly"];
-        const a7 = ["goldcar","interrent", "rhodium"];
-        const resultsSliced = response.places_results.slice(0, 10);
+    public static checkForBestProviderMatch(supplierName: string, resultsSliced: PlacesResult[]): PlacesResult | undefined {
         supplierName = supplierName.toLowerCase();
 
-        for(const result of resultsSliced){
-            if(a1.includes(supplierName)){
-                for(const supplier of a1){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a2.includes(supplierName)){
-                for(const supplier of a2){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a3.includes(supplierName)){
-                for(const supplier of a3){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a4.includes(supplierName)){
-                for(const supplier of a4){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a5.includes(supplierName)){
-                for(const supplier of a5){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a6.includes(supplierName)){
-                for(const supplier of a6){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
-            } else if(a7.includes(supplierName)){
-                for(const supplier of a7){
-                    if(result.title.toLowerCase().includes(supplier.toLowerCase())){
-                        return result;
-                    } 
-                }
+        for (const result of resultsSliced) {
+            const grp = this.getSupplierGroup(supplierName);
+            if(grp){
+                const isValid = this.isResultValid(grp, result);
+                if (isValid) return result;
             }
         }
         return resultsSliced.find(x => x.title.toLowerCase().includes(supplierName));
+    }
+
+    public static getSupplierGroup(supplierName: string): string[] | undefined {
+        const a1 = ["enterprise", "national", "alamo"];
+        const a2 = ["avis", "budget"];
+        const a3 = ["europcar", "keddy", "keddy by europcar"];
+        const a4 = ["thrifty", "dollar"];
+        const a5 = ["buchbinder", "global rent-a-car", "robben & wientjes"];
+        const a6 = ["hertz", "firefly"];
+        const a7 = ["goldcar", "interrent", "rhodium"];
+
+        const suppliersArr = [a1, a2, a3, a4, a5, a6, a7];
+
+        return suppliersArr.find(x => x.includes(supplierName));
+    }
+
+    public static isResultValid(supplierGrp: string[], result: PlacesResult): boolean {
+        for (const supplier of supplierGrp) {
+            if (result.title.toLowerCase().includes(supplier.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static mapCoordinatesForRequest(branchCoordinates: string): string {
@@ -140,33 +131,97 @@ export class ValueSerpMapper {
         return [lon, lat];
     }
 
-    public static mapToCsv(branch: any, result: PlaceDTO | null) {
+    public static mapToCsv(branch: any, result: PlaceDTO | null): PlaceCSV | null {
         if (!result) {
-            return {
-                ID: branch.id,
-                NAME: branch.name,
-                GOOGLE_NAME: 'XXX',
-                ADDRESS: branch.address,
-                ZIP_CODE: branch.zipcode,
-                GOOGLE_ADDRESS_AND_ZIP: 'XXX',
-                SUPPLIER: branch.supplier_name,
-                COORDINATES: this.mapCoordinatesForResponse(branch.coordinates),
-                GOOGLE_COORDINATES: 'XXX',
-                SUPPLIER_ID: branch.supplier_id
-            }
+            return null;
+            // return {
+            //     ID: branch.id,
+            //     NAME: branch.name,
+            //     GOOGLE_NAME: 'XXX',
+            //     ADDRESS: branch.address,
+            //     ZIP_CODE: branch.zipcode,
+            //     NEW_ADDRESS: 'XXX',
+            //     NEW_ZIP: 'XXX',
+            //     NEW_CITY: 'XXX',
+            //     NEW_COUNTRY: 'XXX',
+            //     SUPPLIER: branch.supplier_name,
+            //     COORDINATES: this.mapCoordinatesForResponse(branch.coordinates),
+            //     GOOGLE_COORDINATES: 'XXX',
+            //     SUPPLIER_ID: branch.supplier_id
+            // }
         }
 
         return {
-            ID: result.id,
+            ID: result.id.toString(),
             NAME: result.name,
-            GOOGLE_NAME: result.googleName,
+            GOOGLE_NAME: result.newName,
             ADDRESS: result.address,
             ZIP_CODE: result.zipCode,
-            GOOGLE_ADDRESS_AND_ZIP: result.googleAddress,
+            NEW_ADDRESS: result.newAddress,
+            NEW_ZIP: result.newZipCode,
+            NEW_CITY: result.newCity,
+            NEW_COUNTRY: result.newCountry,
             SUPPLIER: result.supplier,
             COORDINATES: result.coordinates,
-            GOOGLE_COORDINATES: result.googleCoordinates,
+            GOOGLE_COORDINATES: result.newCoordinates,
             SUPPLIER_ID: result.supplierId
         }
     }
+
+    public static checkCoordinatesDistance(coordinates: string, newCoordinates: string, maxDistance = 100): boolean {
+        let [lat1, lon1] = coordinates.split(",");
+        let [lat2, lon2] = newCoordinates.split(",");
+
+        var R = 6371; // km
+        var dLat = this.toRad(+lat2 - +lat1);
+        var dLon = this.toRad(+lon2 - +lon1);
+        var _lat1 = this.toRad(+lat1);
+        var _lat2 = this.toRad(+lat2);
+
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(_lat1) * Math.cos(_lat2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        var d = R * c * 1000; // to meters
+
+        return d < maxDistance;
+    }
+
+    public static isSupplierIncludedInText(supplierName: string, text:string): boolean{
+        const grp = this.getSupplierGroup(supplierName.toLowerCase());
+        if(grp){
+            const result = grp.find(x => text.toLowerCase().includes(x));
+            if(result) return true;
+        }
+        return false;
+    }
+
+
+    public static mapAddressDetails(resAddress: string, supplierName: string): [string, string, string, string] {
+        const splittedAddress = resAddress.split(",");
+        let first = 0;
+        const numElems = splittedAddress.length;
+        let address: string;
+        if (numElems > 3) {
+            if (this.isSupplierIncludedInText(supplierName,splittedAddress[0])) {
+                address = splittedAddress[first + 1].trim();
+            } else {
+                address = `${splittedAddress[first].trim()}, ${splittedAddress[first + 1].trim()}`;
+            }
+            first++;
+        } else {
+            address = splittedAddress[first].trim();
+        }
+
+        const zipCode = splittedAddress[first + 1].trim().split(" ")[0];
+        const city = splittedAddress[first + 1].trim().split(" ").slice(1).join(' ');
+        const country = splittedAddress[first + 2].trim();
+
+        return [address, zipCode, city, country];
+    }
+
+    // Converts numeric degrees to radians
+    private static toRad(value: number): number {
+        return value * Math.PI / 180;
+    }
+
 }

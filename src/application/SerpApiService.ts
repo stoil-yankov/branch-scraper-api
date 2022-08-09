@@ -8,7 +8,7 @@ import * as branches from "../../resources/de_city_branches.json";
 const fs = require('fs');
 const { stringify } = require("csv-stringify");
 
-const CSV_HEADERS = ["ID", "NAME", "GOOGLE_NAME", "ADDRESS", "ZIP_CODE", "GOOGLE_ADDRESS_AND_ZIP", "SUPPLIER", "COORDINATES", "GOOGLE_COORDINATES", "SUPPLIER_ID"];
+const CSV_HEADERS = ["ID", "NAME", "GOOGLE_NAME", "ADDRESS", "ZIP_CODE", "NEW_ADDRESS", "NEW_ZIP", "NEW_CITY", "NEW_COUNTRY", "SUPPLIER", "COORDINATES", "GOOGLE_COORDINATES", "SUPPLIER_ID"];
 
 export class SerpApiService {
     constructor(private readonly client: AxiosInstance) { }
@@ -46,7 +46,9 @@ export class SerpApiService {
 
             // Мap to CSV and write in the pipe
             const csvResult = ValueSerpMapper.mapToCsv(branch, result);
-            stringifier.write(csvResult);
+            if(csvResult){
+                stringifier.write(csvResult);
+            }
 
             if (!result) {
                 countNoRelevantResults++;
@@ -61,7 +63,7 @@ export class SerpApiService {
         return results;
     }
 
-    async getAddressByCoordinatesValueSerpAPI(branch: any, logFileName: string): Promise<PlaceDTO | null> {
+    async getAddressByCoordinatesValueSerpAPI(branch: any, logFileName?: string): Promise<PlaceDTO | null> {
         try {
             // 1. Create request
             const requestConfig = ValueSerpMapper.mapPlacesRequest(branch);
@@ -70,7 +72,9 @@ export class SerpApiService {
             const response = await this.client.request<string>(requestConfig);
 
             // 3. Log the response in a file
-            LogService.logJsonResponseInFile(response.data, logFileName, requestConfig.params);
+            if(logFileName){
+                LogService.logJsonResponseInFile(response.data, logFileName, requestConfig.params);
+            }
 
             // 4. Map the response
             const mappedResponse = ValueSerpMapper.mapPlacesResponse(branch, response.data as any);
